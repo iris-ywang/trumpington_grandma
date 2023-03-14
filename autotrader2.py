@@ -98,31 +98,41 @@ class AutoTrader(BaseAutoTrader):
             # if self.ask_id != 0 and new_ask_price not in (self.ask_price, 0):
             #     self.send_cancel_order(self.ask_id)
             #     self.ask_id = 0
-            print("Position ", self.position)
-            gradient = self.gradient_by_moving_average(self.mid_history, n_ave)
 
-            if len(self.on_hold_bid_prices) * LOT_SIZE + self.position >= POSITION_LIMIT:
+            gradient, moving_average_price = self.gradient_by_moving_average(self.mid_history, n_ave)
+
+            if len(self.on_hold_bid_prices) > 8:
                 min_bid_id = min(self.on_hold_bid_prices, key=self.on_hold_bid_prices.get)
-                self.send_cancel_order(min_bid_id)
+                if abs(self.on_hold_bid_prices[min_bid_id] - moving_average_price) > 10 * TICK_SIZE_IN_CENTS:
+                    self.send_cancel_order(min_bid_id)
 
-            if len(self.on_hold_ask_prices) * LOT_SIZE * (-1) + self.position >= POSITION_LIMIT:
+            if len(self.on_hold_ask_prices) > 8:
                 min_ask_id = max(self.on_hold_ask_prices, key=self.on_hold_ask_prices.get)
-                self.send_cancel_order(min_ask_id)
+                if abs(self.on_hold_ask_prices[min_ask_id] - moving_average_price) > 10 * TICK_SIZE_IN_CENTS:
+                    self.send_cancel_order(min_ask_id)
+
+            # if len(self.mid_history) >= 2 and abs(self.mid_history[-1] - self.mid_history[-2]) > 10:
+            #     for bid_id in self.bids:
+            #         self.send_cancel_order(bid_id)
+            #     for ask_id in self.asks:
+            #         self.send_cancel_order(ask_id)
 
             if -50.0 < gradient < 50:
-                if new_bid_price != 0 and self.position < POSITION_LIMIT:
+                if new_bid_price != 0 and (len(self.on_hold_bid_prices) * LOT_SIZE + self.position) < POSITION_LIMIT - 10:
                     self.bid_id = next(self.order_ids)
                     self.bid_price = new_bid_price
                     self.send_insert_order(self.bid_id, Side.BUY, new_bid_price, LOT_SIZE, Lifespan.GOOD_FOR_DAY)
                     self.bids.add(self.bid_id)
                     self.on_hold_bid_prices[self.bid_id] = new_bid_price
 
-                if new_ask_price != 0 and self.position > -POSITION_LIMIT:
+                if new_ask_price != 0 and (len(self.on_hold_ask_prices) * LOT_SIZE * (-1) + self.position) > -(POSITION_LIMIT-10):
                     self.ask_id = next(self.order_ids)
                     self.ask_price = new_ask_price
                     self.send_insert_order(self.ask_id, Side.SELL, new_ask_price, LOT_SIZE, Lifespan.GOOD_FOR_DAY)
                     self.asks.add(self.ask_id)
                     self.on_hold_ask_prices[self.ask_id] = new_ask_price
+
+
     def on_order_filled_message(self, client_order_id: int, price: int, volume: int) -> None:
         """Called when one of your orders is filled, partially or fully.
 
@@ -189,6 +199,6 @@ class AutoTrader(BaseAutoTrader):
             n_ave = n_points
         mid_price = sum(i for i in lst[::-1][:n_ave]) / n_ave
         gradient = (mid_price - lst[::-1][n_ave-1]) / n_ave
-        return gradient
+        return gradient, mid_price
 
 # if order limit is reached, the price least favorred should be cancelled first.
