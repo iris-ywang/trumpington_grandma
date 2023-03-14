@@ -37,6 +37,7 @@
   },
   "Traders": {
     "TraderOne": "secret",
-    "WSB": "shush"
+    "WSB": "shush",
+    "WSB_shadow": "shush"
   }
 }

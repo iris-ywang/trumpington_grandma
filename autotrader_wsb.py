@@ -89,18 +89,18 @@ class AutoTrader(BaseAutoTrader):
         if instrument == Instrument.FUTURE:
 
             if bid_prices[0] > self.etf_ask_best + TICK_SIZE_IN_CENTS:
-                if self.bid_id != 0:
-                    self.send_cancel_order(self.bid_id)
+                # if self.bid_id != 0:
+                #     self.send_cancel_order(self.bid_id)
                 self.bid_id = next(self.order_ids)
                 self.bid_price = self.etf_ask_best + TICK_SIZE_IN_CENTS
-                self.send_insert_order(self.bid_id, Side.BUY, self.bid_price, min(LOT_SIZE, POSITION_LIMIT - self.position, self.etf_ask_vol), Lifespan.GOOD_FOR_DAY)
+                self.send_insert_order(self.bid_id, Side.BUY, self.bid_price, min(0.7 * LOT_SIZE * (bid_prices[0] - self.etf_ask_best), POSITION_LIMIT - self.position), Lifespan.FILL_AND_KILL)
                 self.bids.add(self.bid_id)
             if ask_prices[0] < self.etf_bid_best - TICK_SIZE_IN_CENTS:
-                if self.ask_id != 0:
-                    self.send_cancel_order(self.ask_id)
+                # if self.ask_id != 0:
+                #     self.send_cancel_order(self.ask_id)
                 self.ask_id = next(self.order_ids)
                 self.ask_price = self.etf_bid_best - TICK_SIZE_IN_CENTS
-                self.send_insert_order(self.ask_id, Side.SELL, self.ask_price, min(LOT_SIZE, self.position + POSITION_LIMIT, self.etf_bid_vol), Lifespan.GOOD_FOR_DAY)
+                self.send_insert_order(self.ask_id, Side.SELL, self.ask_price, min(0.7 * LOT_SIZE * (self.etf_bid_best - ask_prices[0]), self.position + POSITION_LIMIT), Lifespan.FILL_AND_KILL)
                 self.asks.add(self.ask_id)
 
             # price_adjustment = - (self.position // LOT_SIZE) * TICK_SIZE_IN_CENTS
